@@ -1,0 +1,13 @@
+# SQLite runtime databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Compiled executables
+*.exe
+*.o
+*.obj
+
+# IDE and editor files
+.vscode/
