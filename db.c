@@ -40,12 +40,12 @@ int db_open(sqlite3 **bank_db, sqlite3 **atm_db)
     sqlite3 *bank = NULL;
     sqlite3 *atm = NULL;
 
-    if (bank_db == NULL || atm_db == NULL || *bank_db == NULL || *atm_db == NULL)
+    if (bank_db == NULL || atm_db == NULL ||
+        *bank_db != NULL || *atm_db != NULL)
     {
-        fprintf(stderr, "Invalid database pointer argument.\n");
+        fprintf(stderr, "Invalid database pointer arguments.\n");
         return -1;
     }
-
     int result = sqlite3_open("bank.db", &bank);
 
     if (result != SQLITE_OK)
@@ -121,6 +121,9 @@ int db_init(sqlite3 *bank_db, sqlite3 *atm_db)
                    "CHECK(status IN ('active', 'frozen', 'closed')),"
                    "FOREIGN KEY(user_id) REFERENCES users(user_id)"
                    ");") != 0 ||
+        db_execute(bank_db,
+                   "CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_user_type "
+                   "ON accounts(user_id, account_type);") != 0 ||
         db_execute(bank_db,
                    "CREATE TABLE IF NOT EXISTS transactions ("
                    "txn_id INTEGER PRIMARY KEY,"
