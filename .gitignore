@@ -8,14 +8,16 @@
 *.exe
 *.o
 *.obj
-bank_atm
+*.dll
+*.so
 
-# Local test/build output
+# Build output
+build/
+
+# Local verification and test files
 verification/
+test_*.c
+test_*
 
 # IDE and editor files
 .vscode/
-
-# Automated test sources and test executables are not part of the application repo
-test_*.c
-test_*
