@@ -48,4 +48,7 @@ int get_queue_status(sqlite3 *atm_db,
                      size_t capacity,
                      size_t *record_count);
 
+void reset_link_check_sequence(void);
+void end_link_check_sequence(void);
+
 #endif
