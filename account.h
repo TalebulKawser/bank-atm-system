@@ -61,7 +61,9 @@ int get_balance(sqlite3 *bank_db,
 
 /* Admin-only account status operations. */
 int freeze_account(sqlite3 *bank_db, sqlite3_int64 account_id);
+int unfreeze_account(sqlite3 *bank_db, sqlite3_int64 account_id);
 int close_account(sqlite3 *bank_db, sqlite3_int64 account_id);
+int reopen_account(sqlite3 *bank_db, sqlite3_int64 account_id);
 
 /* Admin tools. The caller owns the returned list and must free it. */
 int search_account(sqlite3 *bank_db,

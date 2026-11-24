@@ -160,12 +160,17 @@ int register_customer(sqlite3 *bank_db, const char *name, const char *pin, const
 
 int authenticate_user(sqlite3 *bank_db, sqlite3_int64 account_id, const char *pin, sqlite3_int64 *out_user_id)
 {
-    if (bank_db == NULL || account_id <= 0 || pin == NULL || out_user_id == NULL) return ERR_INVALID_INPUT;
+    if (bank_db == NULL || account_id <= 0 || !is_valid_pin(pin) || out_user_id == NULL)
+        return ERR_INVALID_INPUT;
 
     sqlite3_stmt *st = NULL;
     const char *sql =
-        "SELECT u.user_id, u.pin FROM accounts a "
-        "JOIN users u ON a.user_id = u.user_id WHERE a.account_id = ?";
+        "SELECT u.user_id, u.pin "
+        "FROM accounts a "
+        "JOIN users u ON a.user_id = u.user_id "
+        "WHERE a.account_id = ? "
+        "AND a.status = 'active' "
+        "AND u.status = 'active'";
 
     if (sqlite3_prepare_v2(bank_db, sql, -1, &st, NULL) != SQLITE_OK) return ERR_DB;
     sqlite3_bind_int64(st, 1, account_id);
@@ -208,24 +213,57 @@ int get_balance(sqlite3 *bank_db, sqlite3_int64 account_id, double *out_balance)
     return result;
 }
 
-static int set_account_status(sqlite3 *bank_db, sqlite3_int64 account_id, const char *new_status)
+static int transition_account_status(sqlite3 *bank_db,
+                                     sqlite3_int64 account_id,
+                                     const char *new_status,
+                                     const char *allowed_current_status)
 {
-    sqlite3 *db = bank_db;
-    sqlite3_stmt *st = NULL;
-    const char *sql = "UPDATE accounts SET status = ? WHERE account_id = ?";
+    if (bank_db == NULL || account_id <= 0 || new_status == NULL ||
+        allowed_current_status == NULL)
+        return ERR_INVALID_INPUT;
 
-    if (sqlite3_prepare_v2(db, sql, -1, &st, NULL) != SQLITE_OK) return ERR_DB;
+    sqlite3_stmt *st = NULL;
+    const char *sql =
+        "UPDATE accounts SET status = ? WHERE account_id = ? AND status = ?";
+
+    if (sqlite3_prepare_v2(bank_db, sql, -1, &st, NULL) != SQLITE_OK)
+        return ERR_DB;
+
     sqlite3_bind_text(st, 1, new_status, -1, SQLITE_STATIC);
     sqlite3_bind_int64(st, 2, account_id);
+    sqlite3_bind_text(st, 3, allowed_current_status, -1, SQLITE_STATIC);
 
     int rc = sqlite3_step(st);
     sqlite3_finalize(st);
     if (rc != SQLITE_DONE) return ERR_DB;
-    return (sqlite3_changes(db) == 0) ? ERR_NOT_FOUND : OK;
+    return sqlite3_changes(bank_db) == 0 ? ERR_NOT_FOUND : OK;
 }
 
-int freeze_account(sqlite3 *bank_db, sqlite3_int64 account_id) { return set_account_status(bank_db, account_id, "frozen"); }
-int close_account(sqlite3 *bank_db, sqlite3_int64 account_id)  { return set_account_status(bank_db, account_id, "closed"); }
+/* Only active accounts can be frozen; only frozen accounts can be unfrozen. */
+int freeze_account(sqlite3 *bank_db, sqlite3_int64 account_id)
+{
+    return transition_account_status(bank_db, account_id, "frozen", "active");
+}
+
+int unfreeze_account(sqlite3 *bank_db, sqlite3_int64 account_id)
+{
+    return transition_account_status(bank_db, account_id, "active", "frozen");
+}
+
+/* Closing is allowed from active or frozen; closed accounts remain in history. */
+int close_account(sqlite3 *bank_db, sqlite3_int64 account_id)
+{
+    int rc = transition_account_status(bank_db, account_id, "closed", "active");
+    if (rc == ERR_NOT_FOUND)
+        rc = transition_account_status(bank_db, account_id, "closed", "frozen");
+    return rc;
+}
+
+/* Reopening is an explicit administrator override, not a customer action. */
+int reopen_account(sqlite3 *bank_db, sqlite3_int64 account_id)
+{
+    return transition_account_status(bank_db, account_id, "active", "closed");
+}
 
 /* ------------------------------------------------------------------ */
 /* Linked list: build, find, free                                      */

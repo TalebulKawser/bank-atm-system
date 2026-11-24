@@ -412,44 +412,47 @@ int sync_pending_queue(sqlite3 *bank_db,
             break;
         }
 
-        reset_link_check_sequence();
-
-        if (strcmp(pending_records[i].type, "deposit") == 0)
         {
-            transaction_result = deposit(
-                bank_db,
-                pending_records[i].account_id,
-                pending_records[i].amount,
-                is_link_up
-            );
-        }
-        else if (strcmp(pending_records[i].type, "transfer") == 0 &&
-                 pending_records[i].has_related_account)
-        {
-            transaction_result = transfer(
-                bank_db,
-                pending_records[i].account_id,
-                pending_records[i].related_account_id,
-                pending_records[i].amount,
-                is_link_up
-            );
-        }
-        else
-        {
-            transaction_result = ERR_INVALID_INPUT;
+            int attempt;
+
+            /* A one-time simulated drop gets one automatic retry. */
+            for (attempt = 0; attempt < 2; attempt++)
+            {
+                reset_link_check_sequence();
+
+                if (strcmp(pending_records[i].type, "deposit") == 0)
+                {
+                    transaction_result = deposit(
+                        bank_db, pending_records[i].account_id,
+                        pending_records[i].amount, is_link_up
+                    );
+                }
+                else if (strcmp(pending_records[i].type, "transfer") == 0 &&
+                         pending_records[i].has_related_account)
+                {
+                    transaction_result = transfer(
+                        bank_db, pending_records[i].account_id,
+                        pending_records[i].related_account_id,
+                        pending_records[i].amount, is_link_up
+                    );
+                }
+                else
+                {
+                    transaction_result = ERR_INVALID_INPUT;
+                }
+
+                /* Always clear a one-shot fault after each attempt. */
+                end_link_check_sequence();
+
+                if (transaction_result != ERR_LINK_DOWN || !gateway_online)
+                    break;
+
+                /* The gateway is still administratively online: this was
+                   the one-time fault, so retry this same queue item once. */
+            }
         }
 
-        /*
-         * Always clean up callback state after the attempt.
-         * This also handles transactions that fail before
-         * reaching their second gateway check.
-         */
-        end_link_check_sequence();
-
-        /*
-         * A gateway failure is temporary.
-         * Keep this entry pending and stop synchronization.
-         */
+        /* A real/persistent outage leaves this and later items pending. */
         if (transaction_result == ERR_LINK_DOWN)
         {
             final_status = ERR_LINK_DOWN;

@@ -65,10 +65,13 @@ int db_open(sqlite3 **bank_db, sqlite3 **atm_db)
     {
         fprintf(stderr, "Could not open atm.db: %s\n", sqlite3_errmsg(atm));
 
-        sqlite3_close(atm);
         if (atm != NULL)
         {
             sqlite3_close(atm);
+        }
+        if (bank != NULL)
+        {
+            sqlite3_close(bank);
         }
         return -1;
     }

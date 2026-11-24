@@ -48,6 +48,7 @@ int get_queue_status(sqlite3 *atm_db,
                      size_t capacity,
                      size_t *record_count);
 
+/* Bracket direct transaction calls that pass is_link_up as their callback. */
 void reset_link_check_sequence(void);
 void end_link_check_sequence(void);
 

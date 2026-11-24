@@ -4,10 +4,18 @@
 *.db-wal
 *.db-shm
 
-# Compiled executables
+# Compiled binaries and object files
 *.exe
 *.o
 *.obj
+bank_atm
+
+# Local test/build output
+verification/
 
 # IDE and editor files
 .vscode/
+
+# Automated test sources and test executables are not part of the application repo
+test_*.c
+test_*
