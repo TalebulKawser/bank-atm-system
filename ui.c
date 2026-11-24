@@ -519,6 +519,15 @@ int ui_run_atm(sqlite3 *bank_db, sqlite3 *atm_db)
         }
         if (choice == 7)
         {
+            /* The in-session list is a snapshot. Refresh it from bank.db
+             * before displaying balances in the account-switch screen. */
+            rc = refresh_customer_accounts(bank_db, user_id, &accounts);
+            if (rc != OK)
+            {
+                print_status_message(rc);
+                continue;
+            }
+
             rc = select_active_account(accounts, &account_id);
             if (rc == INPUT_EOF || input_eof) break;
             if (rc != OK) print_status_message(rc);
