@@ -33,9 +33,6 @@ On Linux/macOS:
 
 The two database files and required tables are created automatically on first launch.
 
-## Initial administrator PIN
-
-The current demonstration PIN is `0000`, defined by `ADMIN_PIN` in `ui.c`. Change it before a public demonstration if the team agrees on another value.
 
 ## Application functions
 
